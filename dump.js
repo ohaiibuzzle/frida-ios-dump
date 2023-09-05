@@ -423,18 +423,19 @@ function loadAllDynamicLibrary2(app_path, dirBlacklist) {
 }
 
 function handleMessage(message) {
-    // freeze();
     getAllAppModules();
     var dirBlacklist = message.blacklist;
     var app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
     loadAllDynamicLibrary2(app_path, dirBlacklist);
     // start dump
     modules = getAllAppModules();
+    // freeze();
     for (var i = 0; i < modules.length; i++) {
         console.log("start dump " + modules[i].path);
         var result = dumpModule(modules[i].path);
         send({ dump: result, path: modules[i].path });
     }
+    // unfreeze();
     send({ app: app_path.toString() });
     send({ done: "ok" });
     recv(handleMessage);

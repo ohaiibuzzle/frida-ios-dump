@@ -4,24 +4,23 @@
 # Author : AloneMonkey
 # blog: www.alonemonkey.com
 
-from __future__ import print_function
-from __future__ import unicode_literals
-import sys
-import codecs
-import frida
-import threading
-import os
-import shutil
-import time
+from __future__ import print_function, unicode_literals
+
 import argparse
-import tempfile
-import subprocess
+import codecs
+import os
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import traceback
+
+import frida
 import paramiko
-from paramiko import SSHClient
 from scp import SCPClient
 from tqdm import tqdm
-import traceback
 
 IS_PY2 = sys.version_info[0] < 3
 if IS_PY2:
@@ -93,6 +92,7 @@ def generate_ipa(path, display_name):
         shutil.rmtree(PAYLOAD_PATH)
     except Exception as e:
         print(e)
+    finally:
         finished.set()
 
 
@@ -314,10 +314,10 @@ def open_target_app(device, name_or_bundleid):
     except Exception as e:
         print(e)
 
-    return session, display_name, bundle_identifier
+    return session, pid, display_name, bundle_identifier
 
 
-def start_dump(session, ipa_name, blacklisted_dirs=[]):
+def start_dump(session, pid, ipa_name, blacklisted_dirs=[]):
     print("Dumping {} to {}".format(display_name, TEMP_DIR))
 
     script = load_js_file(session, DUMP_JS)
@@ -326,8 +326,9 @@ def start_dump(session, ipa_name, blacklisted_dirs=[]):
 
     generate_ipa(PAYLOAD_PATH, ipa_name)
 
-    if session:
-        session.detach()
+    # kill the app (easier tbh)
+    if not device.is_lost:
+        device.kill(pid)
 
 
 if __name__ == "__main__":
@@ -406,14 +407,14 @@ if __name__ == "__main__":
             )
 
             create_dir(PAYLOAD_PATH)
-            (session, display_name, bundle_identifier) = open_target_app(
+            (session, pid, display_name, bundle_identifier) = open_target_app(
                 device, name_or_bundleid
             )
             if output_ipa is None:
                 output_ipa = display_name
             output_ipa = re.sub("\.ipa$", "", output_ipa)
             if session:
-                start_dump(session, output_ipa, blacklisted_dirs)
+                start_dump(session, pid, output_ipa, blacklisted_dirs)
         except paramiko.ssh_exception.NoValidConnectionsError as e:
             print(e)
             print("Try specifying -H/--hostname and/or -p/--port")
